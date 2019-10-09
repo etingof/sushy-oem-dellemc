@@ -1,23 +1,25 @@
 # Copyright 2017 Red Hat, Inc.
 # All Rights Reserved.
+# Copyright (c) 2019 Dell Inc. or its subsidiaries.
 #
-#    Licensed under the Apache License, Version 2.0 (the "License"); you may
-#    not use this file except in compliance with the License. You may obtain
-#    a copy of the License at
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
 #
-#         http://www.apache.org/licenses/LICENSE-2.0
+#      http://www.apache.org/licenses/LICENSE-2.0
 #
-#    Unless required by applicable law or agreed to in writing, software
-#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-#    License for the specific language governing permissions and limitations
-#    under the License.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 
 import json
 import mock
 
 from oslotest.base import BaseTestCase
 import sushy
+from sushy import exceptions
 from sushy.resources.manager import manager
 
 
@@ -46,7 +48,7 @@ class ManagerTestCase(BaseTestCase):
         self.assertEqual(
             '/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager'
             '.ImportSystemConfiguration',
-            oem.import_system_configuration_uri)
+            oem._get_import_system_configuration_element().target_uri)
 
     @mock.patch('sushy.resources.oem.common._global_extn_mgrs_by_resource', {})
     def test_set_virtual_boot_device_cd(self):
@@ -58,3 +60,15 @@ class ManagerTestCase(BaseTestCase):
         self.conn.post.assert_called_once_with(
             '/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager'
             '.ImportSystemConfiguration', data=mock.ANY)
+
+    @mock.patch('sushy.resources.oem.common._global_extn_mgrs_by_resource', {})
+    def test_set_virtual_boot_device_missing_action(self):
+        self.conn.get.return_value.json.return_value['Actions']['Oem'].pop(
+            'OemManager.v1_0_0#OemManager.ImportSystemConfiguration')
+        oem = self.manager.get_oem_extension('Dell')
+
+        self.assertRaisesRegex(
+            exceptions.MissingActionError,
+            '#OemManager.ImportSystemConfiguration',
+            oem.set_virtual_boot_device, sushy.VIRTUAL_MEDIA_CD,
+            manager=self.manager)

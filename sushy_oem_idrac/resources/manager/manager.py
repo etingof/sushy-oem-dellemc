@@ -1,3 +1,5 @@
+# Copyright (c) 2019 Dell Inc. or its subsidiaries.
+#
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
 # a copy of the License at
@@ -14,6 +16,7 @@ import logging
 import time
 
 import sushy
+from sushy import exceptions
 from sushy.resources import base
 from sushy.resources import common
 from sushy.resources.oem import base as oem_base
@@ -79,9 +82,16 @@ VFDD\
     RETRY_COUNT = 10
     RETRY_DELAY = 15
 
-    @property
-    def import_system_configuration_uri(self):
-        return self._actions.import_system_configuration.target_uri
+    def _get_import_system_configuration_element(self):
+        import_system_configuration_action = \
+            self._actions.import_system_configuration
+
+        if not import_system_configuration_action:
+            raise exceptions.MissingActionError(
+                action='#OemManager.ImportSystemConfiguration',
+                resource=self._path)
+
+        return import_system_configuration_action
 
     def set_virtual_boot_device(self, device, persistent=False,
                                 manager=None, system=None):
@@ -106,6 +116,8 @@ VFDD\
             raise sushy.exceptions.InvalidParameterValue(
                 error='Unknown or unsupported device %s' % device)
 
+        target_uri = self._get_import_system_configuration_element().target_uri
+
         idrac_media = idrac_media % (
             manager.identity, 'Disabled' if persistent else 'Enabled')
 
@@ -121,7 +133,7 @@ VFDD\
             try:
                 response = asynchronous.http_call(
                     self._conn, 'post',
-                    self.import_system_configuration_uri,
+                    target_uri,
                     data=action_data,
                     sushy_task_poll_period=1)
 
